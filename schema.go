@@ -28,12 +28,10 @@ package gojsonschema
 
 import (
 	"errors"
+	"github.com/xeipuuv/gojsonreference"
 	"math/big"
 	"reflect"
 	"regexp"
-	"text/template"
-
-	"github.com/xeipuuv/gojsonreference"
 )
 
 var (
@@ -42,7 +40,7 @@ var (
 	Locale locale = DefaultLocale{}
 
 	// ErrorTemplateFuncs allows you to define custom template funcs for use in localization.
-	ErrorTemplateFuncs template.FuncMap
+	ErrorTemplateFuncs map[string]any
 )
 
 // NewSchema instances a schema using the given JSONLoader
@@ -73,7 +71,6 @@ func (d *Schema) SetRootSchemaName(name string) {
 // Pretty long function ( sorry :) )... but pretty straight forward, repetitive and boring
 // Not much magic involved here, most of the job is to validate the key names and their values,
 // then the values are copied into subSchema struct
-//
 func (d *Schema) parseSchema(documentNode interface{}, currentSchema *subSchema) error {
 
 	if currentSchema.draft == nil {

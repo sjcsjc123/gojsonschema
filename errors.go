@@ -1,17 +1,16 @@
 package gojsonschema
 
 import (
-	"bytes"
+	"fmt"
+	"strings"
 	"sync"
-	"text/template"
 )
 
-var errorTemplates = errorTemplate{template.New("errors-new"), sync.RWMutex{}}
+var errorTemplates = errorTemplate{sync.RWMutex{}}
 
 // template.Template is not thread-safe for writing, so some locking is done
 // sync.RWMutex is used for efficiently locking when new templates are created
 type errorTemplate struct {
-	*template.Template
 	sync.RWMutex
 }
 
@@ -330,35 +329,9 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 // format and converts it to a string with replacements. The fields come
 // from the ErrorDetails struct and vary for each type of error.
 func formatErrorDescription(s string, details ErrorDetails) string {
-
-	var tpl *template.Template
-	var descrAsBuffer bytes.Buffer
-	var err error
-
-	errorTemplates.RLock()
-	tpl = errorTemplates.Lookup(s)
-	errorTemplates.RUnlock()
-
-	if tpl == nil {
-		errorTemplates.Lock()
-		tpl = errorTemplates.New(s)
-
-		if ErrorTemplateFuncs != nil {
-			tpl.Funcs(ErrorTemplateFuncs)
-		}
-
-		tpl, err = tpl.Parse(s)
-		errorTemplates.Unlock()
-
-		if err != nil {
-			return err.Error()
-		}
+	for key, value := range details {
+		placeholder := "{{" + key + "}}"
+		s = strings.ReplaceAll(s, placeholder, fmt.Sprint(value))
 	}
-
-	err = tpl.Execute(&descrAsBuffer, details)
-	if err != nil {
-		return err.Error()
-	}
-
-	return descrAsBuffer.String()
+	return s
 }
