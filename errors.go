@@ -329,9 +329,8 @@ func newError(err ResultError, context *JsonContext, value interface{}, locale l
 // format and converts it to a string with replacements. The fields come
 // from the ErrorDetails struct and vary for each type of error.
 func formatErrorDescription(s string, details ErrorDetails) string {
-	for key, value := range details {
-		placeholder := "{{" + key + "}}"
-		s = strings.ReplaceAll(s, placeholder, fmt.Sprint(value))
+	for k, v := range details {
+		s = strings.Replace(s, "{{."+k+"}}", fmt.Sprintf("%v", v), -1)
 	}
 	return s
 }
