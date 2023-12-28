@@ -29,20 +29,11 @@ package gojsonschema
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"os"
-	"path/filepath"
-	"runtime"
 	"strings"
 
 	"github.com/xeipuuv/gojsonreference"
 )
-
-var osFS = osFileSystem(os.Open)
 
 // JSONLoader defines the JSON loader interface
 type JSONLoader interface {
@@ -64,13 +55,11 @@ type DefaultJSONLoaderFactory struct {
 
 // FileSystemJSONLoaderFactory is a JSON loader factory that uses http.FileSystem
 type FileSystemJSONLoaderFactory struct {
-	fs http.FileSystem
 }
 
 // New creates a new JSON loader for the given source
 func (d DefaultJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
-		fs:     osFS,
 		source: source,
 	}
 }
@@ -78,24 +67,14 @@ func (d DefaultJSONLoaderFactory) New(source string) JSONLoader {
 // New creates a new JSON loader for the given source
 func (f FileSystemJSONLoaderFactory) New(source string) JSONLoader {
 	return &jsonReferenceLoader{
-		fs:     f.fs,
 		source: source,
 	}
-}
-
-// osFileSystem is a functional wrapper for os.Open that implements http.FileSystem.
-type osFileSystem func(string) (*os.File, error)
-
-// Opens a file with the given name
-func (o osFileSystem) Open(name string) (http.File, error) {
-	return o(name)
 }
 
 // JSON Reference loader
 // references are used to load JSONs from files and HTTP
 
 type jsonReferenceLoader struct {
-	fs     http.FileSystem
 	source string
 }
 
@@ -108,115 +87,18 @@ func (l *jsonReferenceLoader) JsonReference() (gojsonreference.JsonReference, er
 }
 
 func (l *jsonReferenceLoader) LoaderFactory() JSONLoaderFactory {
-	return &FileSystemJSONLoaderFactory{
-		fs: l.fs,
-	}
+	return &FileSystemJSONLoaderFactory{}
 }
 
 // NewReferenceLoader returns a JSON reference loader using the given source and the local OS file system.
 func NewReferenceLoader(source string) JSONLoader {
 	return &jsonReferenceLoader{
-		fs:     osFS,
-		source: source,
-	}
-}
-
-// NewReferenceLoaderFileSystem returns a JSON reference loader using the given source and file system.
-func NewReferenceLoaderFileSystem(source string, fs http.FileSystem) JSONLoader {
-	return &jsonReferenceLoader{
-		fs:     fs,
 		source: source,
 	}
 }
 
 func (l *jsonReferenceLoader) LoadJSON() (interface{}, error) {
-
-	var err error
-
-	reference, err := gojsonreference.NewJsonReference(l.JsonSource().(string))
-	if err != nil {
-		return nil, err
-	}
-
-	refToURL := reference
-	refToURL.GetUrl().Fragment = ""
-
-	var document interface{}
-
-	if reference.HasFileScheme {
-
-		filename := strings.TrimPrefix(refToURL.String(), "file://")
-		filename, err = url.QueryUnescape(filename)
-
-		if err != nil {
-			return nil, err
-		}
-
-		if runtime.GOOS == "windows" {
-			// on Windows, a file URL may have an extra leading slash, use slashes
-			// instead of backslashes, and have spaces escaped
-			filename = strings.TrimPrefix(filename, "/")
-			filename = filepath.FromSlash(filename)
-		}
-
-		document, err = l.loadFromFile(filename)
-		if err != nil {
-			return nil, err
-		}
-
-	} else {
-
-		document, err = l.loadFromHTTP(refToURL.String())
-		if err != nil {
-			return nil, err
-		}
-
-	}
-
-	return document, nil
-
-}
-
-func (l *jsonReferenceLoader) loadFromHTTP(address string) (interface{}, error) {
-
-	// returned cached versions for metaschemas for drafts 4, 6 and 7
-	// for performance and allow for easier offline use
-	if metaSchema := drafts.GetMetaSchema(address); metaSchema != "" {
-		return decodeJSONUsingNumber(strings.NewReader(metaSchema))
-	}
-
-	resp, err := http.Get(address)
-	if err != nil {
-		return nil, err
-	}
-
-	// must return HTTP Status 200 OK
-	if resp.StatusCode != http.StatusOK {
-		return nil, errors.New(formatErrorDescription(Locale.HttpBadStatus(), ErrorDetails{"status": resp.Status}))
-	}
-
-	bodyBuff, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	return decodeJSONUsingNumber(bytes.NewReader(bodyBuff))
-}
-
-func (l *jsonReferenceLoader) loadFromFile(path string) (interface{}, error) {
-	f, err := l.fs.Open(path)
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-
-	bodyBuff, err := ioutil.ReadAll(f)
-	if err != nil {
-		return nil, err
-	}
-
-	return decodeJSONUsingNumber(bytes.NewReader(bodyBuff))
-
+	return nil, nil
 }
 
 // JSON string loader
